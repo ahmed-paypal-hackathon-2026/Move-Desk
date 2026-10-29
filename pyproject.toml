@@ -1,0 +1,7 @@
+[tool.ruff]
+# Movedesk CI linting (MD-4.1). Style polish belongs to the file owners; CI enforces
+# errors and unused code only (ruff default groups E9 = syntax errors, F = pyflakes).
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E9", "F"]

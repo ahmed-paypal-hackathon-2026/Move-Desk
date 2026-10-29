@@ -1,0 +1,51 @@
+# MoveDesk CI (MD-4.1, owned by Person 4). Runs on every push to main and every PR.
+# Three checks, matching the plan's release gates:
+#   R1 tests    : pytest, the same 47 tests that run locally in simulator mode
+#   R3 secrets  : gitleaks across the full git history, same command as audit AUD-02
+#   standards   : ruff with pyproject.toml settings (E9 syntax errors + F unused code)
+# See docs/UNIQUENESS.md for why this setup differs from the Detective's repo.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  GITLEAKS_VERSION: v8.30.1
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"   # same major.minor as the Render PYTHON_VERSION
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python -m pytest -q
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff==0.16.5
+      - run: ruff check .
+
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # scan the whole history, not just the latest commit
+      - name: Install gitleaks
+        run: |
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION#v}_linux_x64.tar.gz" -o gitleaks.tgz
+          tar -xzf gitleaks.tgz gitleaks
+          ./gitleaks version
+      - name: Scan history and working tree
+        run: ./gitleaks detect --source . -v --redact

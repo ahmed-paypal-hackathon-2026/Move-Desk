@@ -4,7 +4,7 @@ from types import SimpleNamespace as NS
 
 import pytest
 
-from app import copilot, db
+from app import copilot
 from conftest import FULL_MSG, booked
 
 
@@ -90,7 +90,7 @@ def test_claude_failure_falls_back_to_offline(client, job_id):
 def test_offline_answers(client, mock_pp, job_id):
     a = client.post("/api/copilot", json={"message": "anything waiting for approval?"}).json()
     assert a["source"] == "offline" and job_id in a["answer"] and a["proposals"][0]["action"] == "approve"
-    j = booked(client, mock_pp, job_id)
+    booked(client, mock_pp, job_id)
     client.post(f"/api/jobs/{job_id}/complete", json={"actual_hours": 3})
     owe = client.post("/api/copilot", json={"message": "who owes me money?"}).json()
     assert job_id in owe["answer"] and "final invoice" in owe["answer"]

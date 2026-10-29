@@ -1,7 +1,6 @@
 """Wrapper around the trained models. Loaded once on first use."""
 import threading
 from datetime import datetime
-from typing import Optional
 
 import joblib
 import pandas as pd

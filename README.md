@@ -6,6 +6,12 @@ A customer describes their move in chat. MoveDesk extracts the job details, esti
 
 Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/).
 
+## Live demo (no signup, no keys)
+
+**https://MOVEDESK-ON-RENDER-URL.onrender.com**   <!-- Person 4: replace with the Render URL at MD-4.2 -->
+
+Runs in simulator mode with sample jobs (`DEMO_SEED=1`), so judges can explore everything without accounts. Free Render services sleep when idle: the first click can take about a minute to wake. The dashboard header shows the mode you are in.
+
 **Three AI roles, one rule.** An intake agent turns a customer's message into a validated job. A copilot answers the owner's questions ("who owes me money?", "who should I chase?") from live data and proposes actions as buttons. Two trained models estimate hours and the chance of paying on time. None of them can set a price or move money: the rate card prices, the owner confirms, PayPal collects.
 
 ## The rule that makes it safe to trust
