@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Get a moving quote</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;800&family=Public+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="chatwrap">
+  <header class="chathead"><h1 id="co">Get a moving quote</h1><p>Tell us about your move in your own words, in English or Arabic. A person confirms every quote.</p></header>
+  <div class="msgs" id="msgs" role="log" aria-live="polite"></div>
+  <div class="hint" id="hint"><button type="button" id="example">Try an example message</button></div>
+  <form class="composer" id="form">
+    <label class="sr" for="text">Your message</label>
+    <textarea id="text" rows="1" maxlength="2000" placeholder="Example: 3 room apartment, 4th floor no elevator, moving 20 km" required></textarea>
+    <button class="btn primary" id="send" type="submit">Send</button>
+  </form>
+</div>
+<script>
+(function () {
+  "use strict";
+  var sid = null;
+  try { sid = sessionStorage.getItem("md_sid"); } catch (e) { /* storage unavailable */ }
+  var box = document.getElementById("msgs"), text = document.getElementById("text"), send = document.getElementById("send");
+  function add(who, msg) {
+    var b = document.createElement("div");
+    b.className = "bubble " + who; b.setAttribute("dir", "auto"); b.textContent = msg;
+    box.appendChild(b); box.scrollTop = box.scrollHeight;
+  }
+  add("bot", "Hi! Tell me about your move: what kind of home, how many rooms, which floors, whether there are elevators, and about how far you are moving. Please add your name and email so we can send the invoice.");
+  fetch("/api/config").then(function (r) { return r.json(); }).then(function (c) {
+    document.getElementById("co").textContent = c.company + ": get a moving quote";
+    document.title = c.company + " quote";
+  }).catch(function () {});
+  /* After the quote: follow the job (approval, deposit, booking, final invoice, paid) right here. */
+  var card = null, timer = null, lastKey = "";
+  function money(n, c) { try { return new Intl.NumberFormat("en-US", { style: "currency", currency: c }).format(n); } catch (e) { return n + " " + c; } }
+  function el(t, c, x) { var e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; }
+  function render(st) {
+    var key = st.status + (st.pay ? st.pay.url + st.pay.amount : "");
+    if (key === lastKey) return; lastKey = key;
+    if (!card) { card = el("div", "status-card"); card.setAttribute("dir", "auto"); }
+    box.appendChild(card);  // keep it as the latest item
+    card.textContent = "";
+    card.appendChild(el("h2", "", st.message));
+    card.appendChild(el("div", "note", "Reference " + st.job_id));
+    if (st.pay) {
+      card.appendChild(el("div", "amt mono", money(st.pay.amount, st.currency)));
+      if (st.pay.discount_pct) card.appendChild(el("div", "note", "Includes a " + st.pay.discount_pct + "% discount if paid by " + new Date(st.pay.discount_until).toLocaleDateString()));
+      var row = el("div", "row");
+      if (st.pay.qr) { var img = el("img"); img.src = st.pay.qr; img.alt = "QR code to pay with PayPal"; row.appendChild(img); }
+      var a = el("a", "btn primary", st.pay.label + " with PayPal"); a.href = st.pay.url; a.target = "_blank"; a.rel = "noopener noreferrer";
+      row.appendChild(a); card.appendChild(row);
+    } else if (st.total) {
+      card.appendChild(el("div", "note", "Total for your move: " + money(st.total, st.currency)));
+    } else if (st.range) {
+      card.appendChild(el("div", "note", "Estimate: " + money(st.range.low, st.currency) + " to " + money(st.range.high, st.currency)));
+    }
+    box.scrollTop = box.scrollHeight;
+    if (st.status === "PAID" || st.status === "REJECTED") { clearInterval(timer); timer = null; }
+  }
+  function poll() {
+    if (!sid) return;
+    fetch("/api/chat/" + encodeURIComponent(sid) + "/status").then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (st) {
+        if (!st) return;
+        document.getElementById("hint").hidden = true; render(st);
+        if (!timer && st.status !== "PAID" && st.status !== "REJECTED") timer = setInterval(poll, 4000);
+      }).catch(function () {});
+  }
+  function watch() { poll(); }
+  if (sid) poll();  // a returning customer sees where their move stands
+
+  document.getElementById("example").addEventListener("click", function () {
+    text.value = "Hi, I'm Sara Ali (sara.ali@example.com). 3 room apartment, 4th floor with no elevator, moving to a ground floor place 20 km away.";
+    text.focus();
+  });
+  text.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); document.getElementById("form").requestSubmit(); }
+  });
+  document.getElementById("form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var m = text.value.trim(); if (!m) return;
+    add("me", m); text.value = ""; send.disabled = true;
+    fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ session_id: sid, message: m }) })
+      .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error("Something went wrong. Please try again."); return d; }); })
+      .then(function (d) {
+        sid = d.session_id; try { sessionStorage.setItem("md_sid", sid); } catch (x) { /* ignore */ }
+        add("bot", d.reply);
+        if (d.complete) { document.getElementById("hint").hidden = true; watch(); }
+      })
+      .catch(function (err) { add("bot", err.message); })
+      .then(function () { send.disabled = false; text.focus(); });
+  });
+})();
+</script>
+</body>
+</html>

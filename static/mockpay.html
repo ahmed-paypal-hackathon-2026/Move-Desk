@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulated invoice checkout</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;800&family=Public+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<main class="pay">
+  <div class="sim">Simulator page for demos. No real money moves here.</div>
+  <div class="body" id="body"><p>Loading invoice…</p></div>
+</main>
+<script>
+(function () {
+  "use strict";
+  var id = decodeURIComponent(location.pathname.split("/").pop());
+  var body = document.getElementById("body");
+  function el(t, c, x) { var e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; }
+  function money(n, c) { try { return new Intl.NumberFormat("en-US", { style: "currency", currency: c }).format(n); } catch (e) { return n + " " + c; } }
+  function draw(inv) {
+    body.textContent = "";
+    body.appendChild(el("h1", "", inv.business));
+    body.appendChild(el("div", "note", "Invoice " + inv.id + " for " + inv.recipient + ", due " + inv.due_date));
+    body.appendChild(el("div", "amount mono", money(inv.total, inv.currency)));
+    var ul = el("ul", "tight");
+    inv.items.forEach(function (i) { ul.appendChild(el("li", "", i.name + (i.discount_pct ? " (" + i.discount_pct + "% early payment discount)" : ""))); });
+    body.appendChild(ul);
+    if (inv.note) body.appendChild(el("p", "note", inv.note));
+    if (inv.status === "SENT" || inv.status === "UNPAID") {
+      var qr = el("div", "qr"); var img = el("img"); img.src = inv.qr; img.alt = "QR code for this invoice"; img.width = 140; img.height = 140; qr.appendChild(img);
+      body.appendChild(qr);
+      var btn = el("button", "btn primary", "Pay " + money(inv.total, inv.currency));
+      var err = el("div", "err"); err.setAttribute("role", "alert");
+      btn.addEventListener("click", function () {
+        btn.disabled = true;
+        fetch("/api/demo/pay/" + encodeURIComponent(id), { method: "POST" })
+          .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.detail || "Payment failed"); return d; }); })
+          .then(load).catch(function (e) { err.textContent = e.message; btn.disabled = false; });
+      });
+      body.appendChild(btn); body.appendChild(err);
+    } else {
+      body.appendChild(el("p", "chip " + (inv.status === "PAID" ? "PAID" : "REJECTED"), "Invoice status: " + inv.status));
+    }
+  }
+  function load() {
+    return fetch("/api/demo/invoice/" + encodeURIComponent(id)).then(function (r) {
+      if (!r.ok) throw new Error("Invoice not found"); return r.json();
+    }).then(draw).catch(function (e) { body.textContent = e.message; });
+  }
+  load();
+})();
+</script>
+</body>
+</html>

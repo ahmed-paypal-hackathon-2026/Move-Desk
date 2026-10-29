@@ -1,0 +1,84 @@
+{
+  "rows": {
+    "jobs": 60000,
+    "invoices": 60000
+  },
+  "duration": {
+    "random_split": {
+      "baseline_hours_per_room": {
+        "MAE": 2.61,
+        "RMSE": 3.551,
+        "R2": 0.325
+      },
+      "linear_regression": {
+        "MAE": 1.056,
+        "RMSE": 1.476,
+        "R2": 0.883
+      },
+      "gradient_boosting": {
+        "MAE": 0.806,
+        "RMSE": 1.166,
+        "R2": 0.927
+      },
+      "quote_range_p10_p90_coverage": 0.75,
+      "quote_range_mean_width_hours": 2.397
+    },
+    "unseen_companies": {
+      "baseline_hours_per_room": {
+        "MAE": 2.58,
+        "RMSE": 3.552,
+        "R2": 0.333
+      },
+      "linear_regression": {
+        "MAE": 1.062,
+        "RMSE": 1.497,
+        "R2": 0.881
+      },
+      "gradient_boosting": {
+        "MAE": 0.828,
+        "RMSE": 1.182,
+        "R2": 0.926
+      },
+      "quote_range_p10_p90_coverage": 0.74,
+      "quote_range_mean_width_hours": 2.407
+    }
+  },
+  "days_to_pay": {
+    "random_split": {
+      "baseline_median_by_customer_type": {
+        "MAE": 4.939,
+        "RMSE": 11.529,
+        "R2": 0.148
+      },
+      "linear_regression": {
+        "MAE": 5.795,
+        "RMSE": 10.317,
+        "R2": 0.318
+      },
+      "gradient_boosting": {
+        "MAE": 3.563,
+        "RMSE": 10.15,
+        "R2": 0.339
+      },
+      "paid_on_time_AUC": 0.948
+    },
+    "unseen_companies": {
+      "baseline_median_by_customer_type": {
+        "MAE": 4.919,
+        "RMSE": 11.592,
+        "R2": 0.137
+      },
+      "linear_regression": {
+        "MAE": 5.755,
+        "RMSE": 10.397,
+        "R2": 0.306
+      },
+      "gradient_boosting": {
+        "MAE": 3.616,
+        "RMSE": 10.376,
+        "R2": 0.308
+      },
+      "paid_on_time_AUC": 0.948
+    }
+  }
+}

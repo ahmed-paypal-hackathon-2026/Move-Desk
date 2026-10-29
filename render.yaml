@@ -1,0 +1,28 @@
+# One-click deploy for a judge-friendly demo.
+# Without PayPal keys it runs the built-in PayPal simulator, opens with sample jobs, and needs no password.
+# If you add PayPal sandbox keys, you must also set ADMIN_KEY (the app refuses owner actions otherwise).
+services:
+  - type: web
+    name: movedesk
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/config
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: DEMO_SEED
+        value: "1"
+      - key: PUBLIC_BASE_URL
+        sync: false        # your https://<service>.onrender.com URL
+      - key: ADMIN_KEY
+        sync: false        # required only with real PayPal keys
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false        # turns on Claude intake and the Claude copilot

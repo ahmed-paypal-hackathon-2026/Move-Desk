@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MoveDesk dispatch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;800&family=Public+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/vendor/ag-grid.css">
+<link rel="stylesheet" href="/static/vendor/ag-theme-quartz.css">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="top">
+  <h1 id="company">MoveDesk</h1>
+  <span class="tag" id="mode">…</span>
+  <span class="grow"></span>
+  <div class="demo" id="demo">
+    <span>Demo clock</span>
+    <button class="btn" data-adv="1">+1 day</button>
+    <button class="btn" data-adv="3">+3 days</button>
+    <button class="btn" data-adv="7">+7 days</button>
+    <button class="btn" id="play">Play the story</button>
+    <button class="btn" id="seed">Add sample requests</button>
+    <button class="btn" id="reset">Clear all</button>
+  </div>
+  <a href="/chat" target="_blank" rel="noopener">Customer chat</a>
+</header>
+
+<section class="strip" aria-label="Money and workload">
+  <div><div class="k">Needs your approval</div><div class="v mono" id="m-pending">0</div></div>
+  <div><div class="k">Waiting for payment</div><div class="v mono" id="m-out">0</div></div>
+  <div><div class="k">Collected</div><div class="v mono" id="m-col">0</div></div>
+  <div><div class="k">Average days to pay</div><div class="v mono" id="m-days">n/a</div></div>
+  <div><div class="k">Likely to pay late</div><div class="v mono" id="m-risk">0</div></div>
+</section>
+
+<section class="copilot" aria-label="Ask MoveDesk">
+  <form class="ask" id="ask">
+    <label class="sr" for="askText">Ask about your jobs</label>
+    <input id="askText" type="text" maxlength="1000" autocomplete="off" placeholder="Ask about your jobs, for example: who owes me money?">
+    <button class="btn primary" type="submit" id="askBtn">Ask</button>
+  </form>
+  <div class="suggest" id="suggest">
+    <button type="button">What needs my approval?</button>
+    <button type="button">Who owes me money?</button>
+    <button type="button">Who should I chase?</button>
+    <button type="button">How is cash this week?</button>
+  </div>
+  <div class="answer" id="answer" hidden aria-live="polite"></div>
+</section>
+
+<main class="layout">
+  <div class="board">
+    <div id="grid" class="ag-theme-quartz"></div>
+    <div id="fallback" hidden></div>
+    <div id="empty" class="empty" hidden><b>No requests yet</b>Share the customer chat link, or add sample requests from the demo bar.</div>
+  </div>
+  <aside class="drawer" id="drawer" aria-live="polite"><div class="empty"><b>Pick a job</b>Quote, price drivers and actions show up here.</div></aside>
+</main>
+<div id="toast" class="toast" hidden></div>
+<aside class="tour" id="tour" hidden aria-live="polite">
+  <div class="tour-step" id="tourStep"></div>
+  <h2 id="tourTitle"></h2>
+  <p id="tourText"></p>
+  <div class="tour-actions">
+    <button class="btn primary" id="tourNext" type="button"></button>
+    <button class="btn" id="tourClose" type="button">Close</button>
+  </div>
+</aside>
+<script src="/static/vendor/ag-grid-community.min.js"></script>
+<script src="/static/dashboard.js"></script>
+</body>
+</html>
