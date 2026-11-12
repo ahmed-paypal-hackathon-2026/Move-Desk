@@ -10,7 +10,7 @@ Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/).
 
 ## Live demo (no signup, no keys)
 
-**https://MOVEDESK-ON-RENDER-URL.onrender.com**   <!-- Person 4: replace with the Render URL at MD-4.2 -->
+**https://movedesk.onrender.com**
 
 Runs in simulator mode with sample jobs (`DEMO_SEED=1`), so judges can explore everything without accounts. Free Render services sleep when idle: the first click can take about a minute to wake. The dashboard header shows the mode you are in.
 
