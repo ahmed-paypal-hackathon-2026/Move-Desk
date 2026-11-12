@@ -172,7 +172,7 @@ def rule_extract(text: str) -> Extraction:
     return ex
 
 
-# ---------- Claude extractor (tool use) ----------
+# ---------- AI extractor (tool use: Gemini or Claude, see app/llm.py) ----------
 
 SYSTEM = (
     "You extract moving-job details from a customer's chat message for a moving company. "
@@ -200,13 +200,13 @@ def _tool_schema() -> dict:
             "input_schema": {"type": "object", "properties": clean}}
 
 
-def claude_extract(text: str, draft: dict) -> Extraction:
-    import anthropic  # imported lazily so the app runs without the SDK key
+def ai_extract(text: str, draft: dict) -> Extraction:
+    from . import llm
 
-    client = anthropic.Anthropic(api_key=config.anthropic_key(), timeout=30.0)
+    client = llm.client()
     known = json.dumps({k: v for k, v in draft.items() if v is not None})
     resp = client.messages.create(
-        model=config.claude_model(),
+        model=config.ai_model(),
         max_tokens=600,
         system=SYSTEM,
         tools=[_tool_schema()],
@@ -219,7 +219,7 @@ def claude_extract(text: str, draft: dict) -> Extraction:
         if getattr(block, "type", "") == "tool_use":
             data = dict(block.input)
             break
-    ex = Extraction(source="claude")
+    ex = Extraction(source=config.ai_provider() or "ai")
     ex.fields, ex.dropped = validate_fields(data)
     ex.language = data.get("language") if data.get("language") in ("en", "ar") else detect_language(text)
     email = (data.get("customer_email") or "").strip()
@@ -234,13 +234,13 @@ def claude_extract(text: str, draft: dict) -> Extraction:
 
 
 def extract(text: str, draft: Optional[dict] = None) -> Extraction:
-    """Claude when configured, falling back to rules if the API call fails."""
-    if config.anthropic_key():
+    """The AI extractor when a key is configured, falling back to rules if the call fails."""
+    if config.ai_provider():
         try:
-            return claude_extract(text, draft or {})
+            return ai_extract(text, draft or {})
         except Exception:
             ex = rule_extract(text)
-            ex.source = "rules (claude unavailable)"
+            ex.source = "rules (AI unavailable)"
             return ex
     return rule_extract(text)
 

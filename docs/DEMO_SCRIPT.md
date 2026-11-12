@@ -14,8 +14,8 @@ Upload to YouTube as public. Record at 1080p with two windows side by side: the 
 | 1:55 | Steps 7 and 8: fast-forward | "If they wait, the discount ends: MoveDesk cancels that invoice in PayPal and issues one at full price. Reminders go out on a schedule set by the risk model." |
 | 2:15 | Step 9: copilot answer | "The owner can just ask: who owes me money? The copilot answers from live data and proposes actions as buttons. It can never act on its own." |
 | 2:30 | Step 10: Paid | "Paid. AI understands and explains. A model estimates. Fixed rules price. A person approves. PayPal moves the money." |
-| 2:40 | Terminal: pytest, 47 passed | "Every one of those guardrails is covered by automated tests." |
+| 2:40 | Terminal: pytest, 56 passed | "Every one of those guardrails is covered by automated tests." |
 
 Honesty rules for the recording:
 * If the dashboard tag says "PayPal simulator", say "shown here with the built-in PayPal simulator" once, early. Only say "PayPal sandbox" if docs/SANDBOX_CHECKLIST.md is done and the tag reads "PayPal sandbox".
-* If no ANTHROPIC_API_KEY is set, the copilot answers in offline mode and says so on screen. Do not describe that answer as Claude. With a key set, ask it a free-form question instead, such as "Which job made the most money and why did it take so long?"
+* If no GEMINI_API_KEY is set, the copilot answers in offline mode and says so on screen. Do not describe that answer as AI-generated. With a key set, ask it a free-form question instead, such as "Which job made the most money and why did it take so long?"

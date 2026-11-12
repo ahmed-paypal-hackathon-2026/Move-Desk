@@ -274,7 +274,8 @@ def handle_paypal_event(event: dict) -> dict:
             db.claim_event(event_id)
         return {"result": "ignored", "event_type": etype}
     res = event.get("resource", {})
-    invoice_id = (res.get("invoice") or {}).get("id") or res.get("id") or ""
+    # PayPal documents the invoice id at resource.id; older samples nest it under resource.invoice.id
+    invoice_id = res.get("id") if str(res.get("id", "")).startswith("INV") else (res.get("invoice") or {}).get("id") or res.get("id") or ""
     j = _find_by_invoice(invoice_id)
     if not j:
         if event_id:
@@ -386,13 +387,14 @@ TEMPLATES = {
 
 
 def _polish(text: str, tone: str, lang: str) -> str:
-    """Optional rewrite by Claude. Falls back to the template if numbers or dates change."""
-    if not config.anthropic_key():
+    """Optional AI rewrite (AI_POLISH_REMINDERS=1). Falls back to the template if numbers or dates change.
+    Off by default so free-tier AI quotas are spent on intake and the copilot."""
+    if not config.ai_provider() or config.env("AI_POLISH_REMINDERS") != "1":
         return text
     try:
-        import anthropic
-        msg = anthropic.Anthropic(api_key=config.anthropic_key()).messages.create(
-            model=config.claude_model(), max_tokens=300,
+        from . import llm
+        msg = llm.client().messages.create(
+            model=config.ai_model(), max_tokens=300,
             system="Rewrite this payment reminder in the same language with a natural, polite tone. Keep every "
                    "number, date and reference exactly as written. Output only the message.",
             messages=[{"role": "user", "content": f"Tone: {tone}\n\n{text}"}])

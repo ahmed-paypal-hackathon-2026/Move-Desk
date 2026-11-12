@@ -40,6 +40,32 @@ def claude_model() -> str:
     return env("CLAUDE_MODEL", "claude-sonnet-5-5")
 
 
+def gemini_key() -> str:
+    return env("GEMINI_API_KEY")
+
+
+def gemini_model() -> str:
+    # an alias Google keeps pointed at its current free-tier Flash-Lite model; override with GEMINI_MODEL
+    return env("GEMINI_MODEL", "gemini-flash-lite-latest")
+
+
+def ai_provider() -> str:
+    """'gemini' (free tier) if GEMINI_API_KEY is set, else 'claude' if ANTHROPIC_API_KEY is set, else ''."""
+    if gemini_key():
+        return "gemini"
+    if anthropic_key():
+        return "claude"
+    return ""
+
+
+def ai_model() -> str:
+    return gemini_model() if ai_provider() == "gemini" else claude_model()
+
+
+def ai_label() -> str:
+    return {"gemini": "Gemini", "claude": "Claude"}.get(ai_provider(), "")
+
+
 def company() -> dict:
     return {
         "name": env("COMPANY_NAME", "Nile Movers"),
@@ -62,7 +88,8 @@ def admin_key() -> str:
 
 
 def public_base_url() -> str:
-    return env("PUBLIC_BASE_URL", "http://localhost:8000")
+    """Base for simulator pay links. Empty means relative links (/mock-pay/...), which work on any host."""
+    return env("PUBLIC_BASE_URL", "").rstrip("/")
 
 
 def scheduler_interval() -> int:

@@ -18,8 +18,8 @@ Reference: <https://developer.paypal.com/docs/api/invoicing/v2/>
 | 1 | Invoice creation accepts our payload and returns an `href` whose last segment is the invoice id | Approve a quote. The job should move to Deposit sent with an invoice URL | Read the error in the job timeline (it includes PayPal's debug id). Adjust `build_invoice_payload`. The `partial_payment` shape is the likeliest culprit |
 | 2 | `POST .../send` emails the customer, and `GET` returns `detail.metadata.recipient_view_url` | Check the sandbox personal account's email (<https://www.sandbox.paypal.com>) | If the URL is empty, build it from the invoice id as PayPal documents |
 | 3 | Item-level `discount.percent` gives the 5 percent early-pay discount | Complete a job. The balance invoice total should be 95 percent of the balance | If rejected or ignored, issue the discounted amount as a negative line item instead |
-| 4 | The paid webhook has `event_type` `INVOICING.INVOICE.PAID` and the invoice id at `resource.invoice.id` | Pay the deposit as the sandbox customer. The job should become Booked. If not, open the webhook delivery log in the dashboard | Adjust the id lookup in `handle_paypal_event` |
-| 5 | `generate-qr-code` returns image bytes | The deposit card should show a scannable QR | Parse the response as JSON/base64 if PayPal returns that instead |
+| 4 | The paid webhook has `event_type` `INVOICING.INVOICE.PAID` and the invoice id at `resource.id` (PayPal's documented shape; the handler also accepts `resource.invoice.id`) | Pay the deposit as the sandbox customer. The job should become Booked. If not, open the webhook delivery log in the dashboard | Adjust the id lookup in `handle_paypal_event` |
+| 5 | `generate-qr-code` returns the QR (docs describe both Base64 PNG text and a JSON body; `qr_data_uri` accepts raw PNG, Base64 or JSON) | The deposit card should show a scannable QR | Save the real response as a test fixture; adjust `qr_data_uri` only if it is a fourth format |
 
 ## Also try
 

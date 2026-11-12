@@ -45,7 +45,7 @@ def test_copilot_uses_tools_and_only_proposes(client, fake, mock_pp, job_id):
         NS(stop_reason="end_turn", content=[text(f"{job_id} is waiting. I proposed approving it.")]),
     ])
     r = client.post("/api/copilot", json={"message": "what needs my approval?"}).json()
-    assert r["source"] == "claude" and r["tools_used"] == ["list_jobs", "propose_action"]
+    assert r["source"] == "ai" and r["tools_used"] == ["list_jobs", "propose_action"]
     assert r["proposals"][0]["action"] == "approve" and r["proposals"][0]["job_id"] == job_id
     # proposing changed nothing and created no invoice
     assert client.get(f"/api/jobs/{job_id}").json()["status"] == "PENDING_APPROVAL" and mock_pp.invoices == {}

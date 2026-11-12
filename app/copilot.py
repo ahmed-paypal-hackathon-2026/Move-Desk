@@ -71,13 +71,13 @@ def set_client(client) -> None:
 def _anthropic():
     global _client
     if _client is None:
-        import anthropic
-        _client = anthropic.Anthropic(api_key=config.anthropic_key())
+        from . import llm
+        _client = llm.client()
     return _client
 
 
 def enabled() -> bool:
-    return bool(config.anthropic_key()) or _client is not None
+    return bool(config.ai_provider()) or _client is not None
 
 
 # ---------------------------------------------------------------- tools (read only)
@@ -177,12 +177,12 @@ def ask(message: str, history: Optional[list] = None) -> dict:
     system = SYSTEM.format(company=co["name"], currency=co["currency"])
     client = _anthropic()
     for _ in range(MAX_ROUNDS):
-        resp = client.messages.create(model=config.claude_model(), max_tokens=1024, system=system,
+        resp = client.messages.create(model=config.ai_model(), max_tokens=1024, system=system,
                                       tools=TOOLS, messages=msgs)
         blocks = list(resp.content)
         if resp.stop_reason != "tool_use":
             text = "".join(getattr(b, "text", "") for b in blocks if getattr(b, "type", "") == "text").strip()
-            return {"answer": text, "proposals": proposals, "tools_used": tools_used, "source": "claude"}
+            return {"answer": text, "proposals": proposals, "tools_used": tools_used, "source": "ai", "provider": config.ai_label() or "AI"}
         msgs.append({"role": "assistant", "content": [_block_dict(b) for b in blocks]})
         results = []
         for b in blocks:
@@ -193,7 +193,7 @@ def ask(message: str, history: Optional[list] = None) -> dict:
                                 "content": json.dumps(out, default=str)[:20000]})
         msgs.append({"role": "user", "content": results})
     return {"answer": "I could not finish that in a few steps. Try a narrower question.",
-            "proposals": proposals, "tools_used": tools_used, "source": "claude"}
+            "proposals": proposals, "tools_used": tools_used, "source": "ai", "provider": config.ai_label() or "AI"}
 
 
 def _block_dict(b) -> dict:

@@ -1,6 +1,6 @@
 # MoveDesk CI (MD-4.1, owned by Person 4). Runs on every push to main and every PR.
 # Three checks, matching the plan's release gates:
-#   R1 tests    : pytest, the same 47 tests that run locally in simulator mode
+#   R1 tests    : pytest, the same tests that run locally in simulator mode
 #   R3 secrets  : gitleaks across the full git history, same command as audit AUD-02
 #   standards   : ruff with pyproject.toml settings (E9 syntax errors + F unused code)
 # See docs/UNIQUENESS.md for why this setup differs from the Detective's repo.

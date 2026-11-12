@@ -6,7 +6,9 @@ from datetime import date
 import httpx
 import pytest
 
-from app.paypal import LivePayPal, PayPalError, build_invoice_payload
+import base64
+
+from app.paypal import LivePayPal, PayPalError, build_invoice_payload, qr_data_uri
 
 SPEC = dict(invoice_number="MD-1-BAL", recipient_name="Sara Ali", recipient_email="sara@example.com", currency="USD",
             due_date=date(2026, 11, 1), note="Final invoice",
@@ -25,7 +27,7 @@ def fake(calls):
         if p.endswith("/send"):
             return httpx.Response(202, json={})
         if p.endswith("/generate-qr-code"):
-            return httpx.Response(200, content=b"\x89PNG", headers={"content-type": "image/png"})
+            return httpx.Response(200, content=b"\x89PNG\r\n\x1a\n" + b"\x00" * 8, headers={"content-type": "image/png"})
         if p.endswith("/payments"):
             return httpx.Response(200, json={"payment_id": "PAY-1"})
         if p.endswith("/verify-webhook-signature"):
@@ -98,3 +100,14 @@ def test_webhook_verification(live):
     assert c.verify_webhook(dict(hdr, **{"PAYPAL-TRANSMISSION-ID": "bad"}), {"id": "e"}) is False
     assert c.verify_webhook({}, {"id": "e"}) is False
     assert LivePayPal("i", "s", "https://x", "").verify_webhook(hdr, {}) is False
+
+
+PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 120
+
+
+def test_qr_accepts_raw_png_base64_text_and_json():
+    b64 = base64.b64encode(PNG).decode()
+    expected = "data:image/png;base64," + b64
+    assert qr_data_uri(PNG) == expected
+    assert qr_data_uri(b64.encode()) == expected
+    assert qr_data_uri(json.dumps({"qr_code": b64}).encode()) == expected

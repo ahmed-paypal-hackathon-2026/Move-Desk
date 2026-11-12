@@ -179,3 +179,17 @@ def test_admin_key_protects_owner_routes(client, monkeypatch):
 def test_pages_and_config(client):
     assert client.get("/").status_code == 200 and client.get("/chat").status_code == 200
     assert client.get("/api/config").json()["paypal_mode"] == "mock"
+
+
+def test_documented_and_nested_webhook_shapes_both_work(client, mock_pp, job_id):
+    client.post(f"/api/jobs/{job_id}/approve")
+    inv = client.get(f"/api/jobs/{job_id}").json()["deposit_invoice"]
+    mock_pp.invoices[inv]["status"] = "PAID"
+    h = {"x-mock-secret": "movedesk-mock"}
+    nested = {"id": "n1", "event_type": "INVOICING.INVOICE.PAID", "resource": {"invoice": {"id": inv}}}
+    assert client.post("/api/paypal/webhook", json=nested, headers=h).json()["result"] == "processed"
+    client.post(f"/api/jobs/{job_id}/complete", json={"actual_hours": 3})
+    bal = client.get(f"/api/jobs/{job_id}").json()["balance_invoice"]
+    mock_pp.invoices[bal]["status"] = "PAID"
+    flat = {"id": "f1", "event_type": "INVOICING.INVOICE.PAID", "resource": {"id": bal, "status": "PAID"}}
+    assert client.post("/api/paypal/webhook", json=flat, headers=h).json()["status"] == "PAID"

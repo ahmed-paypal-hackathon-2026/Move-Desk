@@ -18,10 +18,10 @@ Three AI roles work under one rule: AI understands and explains, models estimate
 * The owner has a copilot. Ask "who owes me money?" or "who should I chase?" and it answers from live data using read-only tools, then proposes actions (approve, send a reminder, record cash) as buttons. It has no tool that changes anything; the owner's click does.
 
 ## How we built it
-FastAPI and SQLite on the backend, Claude tool use for intake (with a rule-based fallback) and for the owner copilot (read tools plus a validated propose-only action tool, with an offline fallback), scikit-learn for the two models, PayPal Invoicing v2 for invoices, QR codes, cash recording, reminders and cancellation, and PayPal webhooks (signature-verified, de-duplicated) for payment events. The dashboard uses AG Grid.
+FastAPI and SQLite on the backend, Google Gemini (free tier) function calling for intake (with a rule-based fallback) and for the owner copilot (read tools plus a validated propose-only action tool, with an offline fallback), scikit-learn for the two models, PayPal Invoicing v2 for invoices, QR codes, cash recording, reminders and cancellation, and PayPal webhooks (signature-verified, de-duplicated) for payment events. The dashboard uses AG Grid.
 
 ## The design rule
-AI extracts and explains. A model estimates hours. Fixed math sets the price. The owner approves. PayPal moves the money. The language model has no path to the price, a job is marked paid only after reading the invoice back from PayPal, and customer text is untrusted data. The copilot can only propose. These guarantees are covered by an automated test suite of 47 tests, including a scripted fake Claude that tries invalid and unsafe proposals.
+AI extracts and explains. A model estimates hours. Fixed math sets the price. The owner approves. PayPal moves the money. The language model has no path to the price, a job is marked paid only after reading the invoice back from PayPal, and customer text is untrusted data. The copilot can only propose. These guarantees are covered by an automated test suite of 56 tests, including a scripted fake model that tries invalid and unsafe proposals.
 
 ## Challenges
 Making an AI agent safe around money: separating what the model may propose from what only code and PayPal may decide, and handling races such as a customer paying an invoice at the moment we replace it.
@@ -36,7 +36,7 @@ Most of the value is in the boring guarantees: idempotency keys, webhook de-dupl
 Run the intake against real customer messages and measure it, add card-on-file deposits, calendar scheduling, and a per-company rate-card editor.
 
 ## Built with
-Python, FastAPI, Claude (Anthropic API), scikit-learn, PayPal Invoicing API and webhooks, SQLite, AG Grid.
+Python, FastAPI, Google Gemini API, scikit-learn, PayPal Invoicing API and webhooks, SQLite, AG Grid.
 
 ## Honest notes for the "try it" section
 Click "Play the story" for a ten-step tour of the full cycle. Runs with no keys using a built-in PayPal simulator; the copilot then answers in a clearly labelled offline mode. With sandbox credentials it uses the PayPal sandbox (only claim this once docs/SANDBOX_CHECKLIST.md is done). Model accuracy figures describe the dataset included in the repository and should be re-measured on a company's own job history.

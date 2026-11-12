@@ -15,7 +15,7 @@ services:
       - key: DEMO_SEED
         value: "1"
       - key: PUBLIC_BASE_URL
-        sync: false        # your https://<service>.onrender.com URL
+        sync: false        # optional: your https://<service>.onrender.com URL
       - key: ADMIN_KEY
         sync: false        # required only with real PayPal keys
       - key: PAYPAL_CLIENT_ID
@@ -24,5 +24,5 @@ services:
         sync: false
       - key: PAYPAL_WEBHOOK_ID
         sync: false
-      - key: ANTHROPIC_API_KEY
-        sync: false        # turns on Claude intake and the Claude copilot
+      - key: GEMINI_API_KEY
+        sync: false        # free key from Google AI Studio; turns on the AI intake agent and copilot

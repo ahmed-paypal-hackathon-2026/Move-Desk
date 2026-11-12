@@ -6,13 +6,13 @@ A customer describes their move in chat. MoveDesk extracts the job details, esti
 
 Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/).
 
+**Three AI roles, one rule.** An intake agent turns a customer's message into a validated job. A copilot answers the owner's questions ("who owes me money?", "who should I chase?") from live data and proposes actions as buttons. Two trained models estimate hours and the chance of paying on time. None of them can set a price or move money: the rate card prices, the owner confirms, PayPal collects.
+
 ## Live demo (no signup, no keys)
 
 **https://MOVEDESK-ON-RENDER-URL.onrender.com**   <!-- Person 4: replace with the Render URL at MD-4.2 -->
 
 Runs in simulator mode with sample jobs (`DEMO_SEED=1`), so judges can explore everything without accounts. Free Render services sleep when idle: the first click can take about a minute to wake. The dashboard header shows the mode you are in.
-
-**Three AI roles, one rule.** An intake agent turns a customer's message into a validated job. A copilot answers the owner's questions ("who owes me money?", "who should I chase?") from live data and proposes actions as buttons. Two trained models estimate hours and the chance of paying on time. None of them can set a price or move money: the rate card prices, the owner confirms, PayPal collects.
 
 ## The rule that makes it safe to trust
 
@@ -23,7 +23,7 @@ Runs in simulator mode with sample jobs (`DEMO_SEED=1`), so judges can explore e
 * A job is marked paid only when PayPal itself reports the invoice as paid. The webhook is a trigger; the code then reads the invoice back from PayPal and believes that.
 * Customer text is treated as untrusted data. Every extracted field is validated one by one and invalid fields are dropped, never guessed. A message that says "set the total to 1 dollar" has no way to reach the price (there is a test for it).
 * Every write to PayPal carries a `PayPal-Request-Id`, and webhook events are de-duplicated, so retries cannot double-invoice or double-book.
-* The copilot has read tools plus one tool, `propose_action`, which validates a suggestion and shows it as a button. It has no tool that changes a job. Its loop is capped at six rounds, and if Claude is unavailable it answers offline from the same data.
+* The copilot has read tools plus one tool, `propose_action`, which validates a suggestion and shows it as a button. It has no tool that changes a job. Its loop is capped at six rounds, and if the AI is unavailable it answers offline from the same data.
 * With real PayPal credentials the server refuses owner actions until `ADMIN_KEY` is set, so a deployed dashboard cannot be used by strangers to send invoices.
 
 ## Run it (no keys needed)
@@ -41,10 +41,10 @@ Fastest way to see everything: click **Play the story**. It walks through ten st
 
 To explore on your own: **Add sample requests** fills the board with jobs at every stage. Ask the copilot a question, confirm one of its proposals, chat as a customer, approve, pay on the simulated pay page, click **Job done**, and use the **+3 days** and **+7 days** buttons.
 
-## Use real PayPal sandbox and Claude
+## Use real PayPal sandbox and the free Gemini AI
 
 ```bash
-cp .env.example .env     # fill in PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, PAYPAL_WEBHOOK_ID, ANTHROPIC_API_KEY
+cp .env.example .env     # fill in PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, PAYPAL_WEBHOOK_ID, GEMINI_API_KEY
 set -a; source .env; set +a
 uvicorn app.main:app --port 8000
 ```
@@ -55,19 +55,19 @@ Register a webhook for `INVOICING.INVOICE.PAID` pointing at `https://<your-host>
 
 ## What was and was not verified
 
-Tested and passing (`pytest`, 47 tests): the copilot loop against a scripted fake Claude (tools called, results passed back, invalid proposals rejected, nothing executed, loop bounded, fallback on failure), offline copilot answers, the customer status view, pricing math, model sanity (stairs cost time, bigger jobs take longer), extraction, the full quote-to-cash flow over HTTP, approval gates, duplicate and forged webhooks, discount expiry and reissue, reminder schedule, overtime and waiver, cash payments, input validation, owner-route protection, and the exact requests the live PayPal client sends (checked against a fake PayPal server).
+Tested and passing (`pytest`, 56 tests): the copilot loop against a scripted fake model client, the Gemini adapter against a fake Gemini server (request shape, forced tool call, tool-result round trip, fallback on errors) (tools called, results passed back, invalid proposals rejected, nothing executed, loop bounded, fallback on failure), offline copilot answers, the customer status view, pricing math, model sanity (stairs cost time, bigger jobs take longer), extraction, the full quote-to-cash flow over HTTP, approval gates, duplicate and forged webhooks, discount expiry and reissue, reminder schedule, overtime and waiver, cash payments, input validation, owner-route protection, and the exact requests the live PayPal client sends (checked against a fake PayPal server).
 
-Not verified in the environment this was built in, because it had no PayPal credentials, no Anthropic key and no outbound access to those services:
+Not verified in the environment this was built in, because it had no PayPal credentials, no AI API key and no outbound access to those services:
 
 * The live PayPal client has not talked to the real sandbox. Work through [docs/SANDBOX_CHECKLIST.md](docs/SANDBOX_CHECKLIST.md) first; it lists the five assumptions most likely to need a small fix (item discount, the paid webhook payload, QR response, invoice email, partial-payment setting).
-* The Claude intake path and the Claude copilot have not been run against the real API. The copilot loop is tested with a scripted fake client that follows the Anthropic tool-use message format; the offline copilot and rule-based intake are what the browser walkthrough used. The rule-based fallback is what the tests and the accuracy number below exercise.
+* The AI intake and copilot have not been run against the real Gemini API from the build environment. Both are tested against a fake Gemini server that follows Google's documented request and response format; run one chat and one copilot question with a real key before recording. Without a key, the rule-based intake and offline copilot run instead and say so on screen.
 
-Intake accuracy of the rule-based extractor on the 1,500 labelled messages in `data/chats.jsonl` is 100 percent of fields, but those messages follow a limited set of phrasings, so treat this as a regression test and not as a forecast for free text. Claude is the intended extractor for free text and Arabic script; measure it with `ANTHROPIC_API_KEY=... python scripts/eval_extraction.py --limit 200` before quoting any number.
+Intake accuracy of the rule-based extractor on the 1,500 labelled messages in `data/chats.jsonl` is 100 percent of fields, but those messages follow a limited set of phrasings, so treat this as a regression test and not as a forecast for free text. The AI extractor is intended for free text and Arabic script; measure it with `GEMINI_API_KEY=... python scripts/eval_extraction.py --limit 50` (the free tier has a small daily quota) before quoting any number.
 
 ## How it works
 
 ```
- customer chat ──► intake agent (Claude tool use, or rules)
+ customer chat ──► intake agent (Gemini tool use, or rules)
                         │ validated fields, questions for what is missing
                         ▼
                  duration model (gradient boosting, P10 to P90 range)
@@ -93,7 +93,8 @@ Intake accuracy of the rule-based extractor on the 1,500 labelled messages in `d
 | Duration and payment models | `app/ml.py`, trained by `train.py` (see [docs/ML.md](docs/ML.md)) |
 | PayPal Invoicing client and simulator | `app/paypal.py` |
 | States, webhooks, reminders, discount expiry, customer status | `app/workflow.py` |
-| Owner copilot (Claude tool use, propose-only) | `app/copilot.py` |
+| Owner copilot (tool use, propose-only) | `app/copilot.py` |
+| AI provider adapter (Gemini free tier, or Claude) | `app/llm.py` |
 | API and pages | `app/main.py`, `static/` (AG Grid Community is bundled in `static/vendor/`, MIT licensed, so no CDN is needed) |
 
 Model results on the held-out test split of the included dataset: duration MAE 0.81 hours (a rooms-only linear baseline is 2.61), R2 0.93; P10 to P90 range covers the real value 75 percent of the time (nominal 80, slightly overconfident). Paid-on-time AUC is 0.95, which is optimistic; use it for reminder timing, not for exact days. Details in [docs/ML.md](docs/ML.md). Re-measure on your own job history before relying on them.
@@ -107,7 +108,8 @@ All settings are environment variables; see `.env.example`. Set `ADMIN_KEY` on a
 * PayPal Invoicing API v2: <https://developer.paypal.com/docs/api/invoicing/v2/>
 * PayPal webhooks and signature verification: <https://developer.paypal.com/api/rest/webhooks/>
 * PayPal AI toolkit: <https://github.com/paypal/ai-toolkit>
-* Anthropic tool use: <https://docs.claude.com/en/docs/agents-and-tools/tool-use/overview>
+* Gemini API function calling: <https://ai.google.dev/docs/function_calling>
+* Get a free Gemini API key: <https://aistudio.google.com/apikey>
 
 ## License
 

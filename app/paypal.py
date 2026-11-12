@@ -63,6 +63,21 @@ def build_invoice_payload(spec: dict) -> dict:
     }
 
 
+def qr_data_uri(body: bytes) -> str:
+    """PayPal documents the QR response both as a Base64-encoded PNG and as a JSON body holding the PNG.
+    Accept raw PNG bytes, Base64 text, or JSON with a Base64 string field."""
+    if body[:8] == b"\x89PNG\r\n\x1a\n":
+        return "data:image/png;base64," + base64.b64encode(body).decode()
+    text = body.decode("ascii", "ignore").strip()
+    if text.startswith("{"):
+        import json as _json
+        obj = _json.loads(text)
+        text = next((v for v in obj.values() if isinstance(v, str) and len(v) > 100), "")
+    text = text.strip().strip('"').split(",")[-1]  # tolerate a data: prefix
+    base64.b64decode(text, validate=False)  # raises if it is not Base64
+    return "data:image/png;base64," + text
+
+
 class LivePayPal:
     mode = "sandbox"
 
@@ -113,8 +128,8 @@ class LivePayPal:
 
     def qr_code(self, invoice_id: str, url: str = "") -> str:
         r = self._req("POST", f"/v2/invoicing/invoices/{invoice_id}/generate-qr-code",
-                      {"width": 300, "height": 300, "action": "pay"}, raw=True)
-        return "data:image/png;base64," + base64.b64encode(r.content).decode()
+                      {"width": 300, "height": 300}, raw=True)
+        return qr_data_uri(r.content)
 
     def record_payment(self, invoice_id: str, amount: float, currency: str, method: str = "CASH") -> dict:
         return self._req("POST", f"/v2/invoicing/invoices/{invoice_id}/payments",
@@ -218,7 +233,7 @@ class MockPayPal:
         inv["status"] = "PAID"
         self.calls.append(("pay", invoice_id))
         return {"id": f"WH-MOCK-{uuid.uuid4().hex[:12]}", "event_type": "INVOICING.INVOICE.PAID",
-                "resource": {"invoice": {"id": invoice_id, "status": "PAID"}}}
+                "resource": {"id": invoice_id, "status": "PAID"}}  # documented shape: invoice id at resource.id
 
 
 def make_client():

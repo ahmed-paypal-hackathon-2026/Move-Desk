@@ -102,8 +102,8 @@ def mock_pay_page(invoice_id: str):
 @app.get("/api/config")
 def get_config():
     return {"company": config.company()["name"], "currency": config.company()["currency"],
-            "paypal_mode": workflow.paypal().mode, "claude": bool(config.anthropic_key()),
-            "copilot": "claude" if copilot.enabled() else "offline",
+            "paypal_mode": workflow.paypal().mode, "ai": config.ai_label() or None,
+            "copilot": "ai" if copilot.enabled() else "offline",
             "admin_key_required": bool(config.admin_key())}
 
 
@@ -177,9 +177,9 @@ def ask_copilot(body: CopilotIn):
         return copilot.ask(body.message, [t.model_dump() for t in body.history])
     except workflow.WorkflowError:
         raise
-    except Exception as e:  # Claude unavailable: answer offline instead of failing the owner
+    except Exception as e:  # AI unavailable: answer offline instead of failing the owner
         out = copilot.offline(body.message)
-        out["note"] = f"Claude was unavailable ({type(e).__name__}), so this is an offline answer."
+        out["note"] = f"The AI was unavailable ({type(e).__name__}), so this is an offline answer."
         return out
 
 

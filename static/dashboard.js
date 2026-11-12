@@ -323,8 +323,8 @@
       box.appendChild(h("div", { class: "proposal" }, [
         h("div", {}, [h("b", { text: p.label }), p.reason ? h("div", { class: "why", text: p.reason }) : null]), btn]));
     });
-    box.appendChild(h("div", { class: "src", text: (r.source === "claude"
-      ? "Answered by Claude from your live job data. "
+    box.appendChild(h("div", { class: "src", text: (r.source === "ai"
+      ? "Answered by " + (r.provider || "AI") + " from your live job data. "
       : "Offline answer from your live job data. ") + "Nothing changes until you confirm." + (r.note ? " " + r.note : "") }));
   }
   function ask(q) {
