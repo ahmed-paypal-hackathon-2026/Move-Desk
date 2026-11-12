@@ -220,6 +220,14 @@ ul.tight li { margin: 2px 0; }
 .err:empty { display: none; }
 .toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); background: var(--night); color: #fff; padding: 11px 18px; border-radius: 999px; font-size: 14px; z-index: 9; max-width: calc(100vw - 32px); text-align: center; }
 
+/* ---------- live customer chat in the desktop panel ---------- */
+.custchat__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.custchat__head .btn { padding: 7px 13px; font-size: 13px; flex: none; }
+.custchat { display: block; width: 100%; height: min(640px, calc(100vh - 150px)); min-height: 460px; border: 0; border-radius: 22px; background: var(--page); }
+.back { background: var(--chip); border: 0; border-radius: 999px; padding: 6px 13px; font-size: 13px; cursor: pointer; margin-bottom: 14px; }
+.back::before { content: "\2190"; margin-right: 6px; }
+.back:hover { background: var(--line); }
+
 /* ---------- phone tab bar ---------- */
 .tabbar { display: none; }
 
@@ -276,6 +284,13 @@ ul.tight li { margin: 2px 0; }
 .hint { padding: 0 4px 10px; display: flex; gap: 8px; flex-wrap: wrap; }
 .hint button { background: var(--surface); border: 0; padding: 7px 13px; border-radius: 999px; cursor: pointer; font-size: 13.5px; }
 .hint button:hover { background: var(--lime-soft); }
+body.embed .chatwrap { padding: 10px 10px 0; height: 100vh; min-height: 0; }
+body.embed .msgs { min-height: 0; }
+body.embed .chathead { padding: 14px 16px; border-radius: 22px; }
+body.embed .chathead .logo { width: 38px; height: 38px; }
+body.embed .chathead h1 { font-size: 17px; }
+body.embed .chathead p { font-size: 13px; }
+body.embed .composer { margin-bottom: 10px; }
 .status-card { align-self: stretch; border-radius: 26px; padding: 20px; background: var(--night); color: #fff; }
 .status-card h2 { font-size: 17px; margin-bottom: 4px; }
 .status-card .note { color: rgba(255, 255, 255, 0.6); }

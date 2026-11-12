@@ -27,6 +27,7 @@
 <script>
 (function () {
   "use strict";
+  if (window.parent !== window) document.body.classList.add("embed");  // shown inside the owner dashboard
   var sid = null;
   try { sid = sessionStorage.getItem("md_sid"); } catch (e) { /* storage unavailable */ }
   var box = document.getElementById("msgs"), text = document.getElementById("text"), send = document.getElementById("send");
@@ -95,7 +96,10 @@
       .then(function (d) {
         sid = d.session_id; try { sessionStorage.setItem("md_sid", sid); } catch (x) { /* ignore */ }
         add("bot", d.reply);
-        if (d.complete) { document.getElementById("hint").hidden = true; watch(); }
+        if (d.complete) {
+          document.getElementById("hint").hidden = true; watch();
+          if (window.parent !== window && d.job_id) window.parent.postMessage({ type: "movedesk:quote", job_id: d.job_id }, location.origin);
+        }
       })
       .catch(function (err) { add("bot", err.message); })
       .then(function () { send.disabled = false; text.focus(); });

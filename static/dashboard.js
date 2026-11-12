@@ -226,10 +226,20 @@
     return box;
   }
 
+  /* Desktop: with no job open, the panel shows the live customer chat, so the owner sees both sides at once. */
+  function wide() { return window.innerWidth > 1000; }
   function emptyDrawer() {
-    var d = $("drawer"); d.textContent = "";
-    d.appendChild(h("div", { class: "empty" }, [h("b", { text: "Pick a job" }), h("span", { text: "Its price, why it costs that and the next step show up here." })]));
+    var d = $("drawer"); d.textContent = ""; state.drawerStamp = "";
+    if (!wide()) {
+      d.appendChild(h("div", { class: "empty" }, [h("b", { text: "Pick a job" }), h("span", { text: "Its price, why it costs that and the next step show up here." })]));
+      return;
+    }
+    d.appendChild(h("div", { class: "custchat__head" }, [
+      h("div", {}, [h("h2", { text: "Customer chat" }), h("div", { class: "sub", text: "What your customers see. Describe a move and the quote lands in your jobs." })]),
+      h("a", { class: "btn quiet", href: "/chat", target: "_blank", rel: "noopener", text: "Open in a tab" })]));
+    d.appendChild(h("iframe", { class: "custchat", src: "/chat", title: "Customer chat" }));
   }
+  function closeJob() { state.selected = null; emptyDrawer(); markSelection(); }
   function renderDrawer() {
     var d = $("drawer");
     var j = state.jobs.filter(function (x) { return x.id === state.selected; })[0];
@@ -238,6 +248,7 @@
     state.drawerStamp = j.updated + j.status;
     d.textContent = "";
     var q = j.quote, e = j.estimate;
+    if (wide()) d.appendChild(h("button", { type: "button", class: "back", onclick: closeJob, text: "Back to customer chat" }));
     d.appendChild(h("div", { class: "drawer__head" }, [
       h("span", { class: "avatar", "aria-hidden": "true", text: initialOf(j.customer_name) }),
       h("div", {}, [h("h2", { dir: "auto", text: j.customer_name }), h("div", { class: "sub", text: j.customer_email + ", ref " + j.id })])]));
@@ -415,6 +426,19 @@
       if (tour.i < STORY.length - 1) { tour.i += 1; showStep(); }
     }).catch(function (e) { toast(e.message); }).then(function () { b.disabled = false; });
   });
+  /* the embedded chat tells us when a customer's quote is ready */
+  window.addEventListener("message", function (e) {
+    if (e.origin !== location.origin || !e.data || e.data.type !== "movedesk:quote") return;
+    refresh(true).then(function () {
+      var j = state.jobs.filter(function (x) { return x.id === e.data.job_id; })[0];
+      toast(j ? "New quote from " + j.customer_name + ". It is in your jobs." : "New quote added to your jobs.");
+    }).catch(function () { /* next poll retries */ });
+  });
+  var wasWide = wide();
+  window.addEventListener("resize", function () {
+    if (wide() !== wasWide) { wasWide = wide(); if (!state.selected) emptyDrawer(); else { state.drawerStamp = ""; renderDrawer(); } }
+  });
+  emptyDrawer();
   $("goAsk").addEventListener("click", function () {
     $("askBlock").scrollIntoView({ block: "start" }); $("askText").focus({ preventScroll: true });
   });
