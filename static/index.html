@@ -2,73 +2,116 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MoveDesk dispatch</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#141414">
+<title>MoveDesk</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;800&family=Public+Sans:wght@400;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/vendor/ag-grid.css">
-<link rel="stylesheet" href="/static/vendor/ag-theme-quartz.css">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-<header class="top">
-  <h1 id="company">MoveDesk</h1>
-  <span class="tag" id="mode">…</span>
-  <span class="grow"></span>
-  <div class="demo" id="demo">
-    <span>Demo clock</span>
-    <button class="btn" data-adv="1">+1 day</button>
-    <button class="btn" data-adv="3">+3 days</button>
-    <button class="btn" data-adv="7">+7 days</button>
-    <button class="btn" id="play">Play the story</button>
-    <button class="btn" id="seed">Add sample requests</button>
-    <button class="btn" id="reset">Clear all</button>
+<header class="sky" id="home">
+  <div class="sky__in">
+    <div class="hello">
+      <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="11"/><path d="M6.5 20.5V10.5h11.5v10M18 13.5h4.2l3.3 3.6v3.4H18"/><circle cx="11" cy="21.5" r="2.2"/><circle cx="21.5" cy="21.5" r="2.2"/></svg>
+      <div class="hello__text"><span>Welcome back</span><h1 id="company">MoveDesk</h1></div>
+      <span class="grow"></span>
+      <span class="pill" id="mode">Loading</span>
+    </div>
+
+    <div class="money">
+      <span class="money__label">Collected through PayPal</span>
+      <div class="money__value num" id="m-col">$0</div>
+      <div class="money__trend"><span aria-hidden="true">&#8599;</span> <b class="num" id="m-out">$0</b> waiting for payment</div>
+    </div>
+
+    <nav class="quick" aria-label="Quick actions">
+      <a class="quick__btn" href="/chat" target="_blank" rel="noopener">
+        <span class="quick__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></span>New quote
+      </a>
+      <button class="quick__btn" type="button" id="goAsk">
+        <span class="quick__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg></span>Ask
+      </button>
+      <span class="demo" id="demo">
+        <button class="quick__btn" type="button" id="play">
+          <span class="quick__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z"/></svg></span>Play the story
+        </button>
+        <button class="quick__btn" type="button" id="seed">
+          <span class="quick__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>Samples
+        </button>
+      </span>
+    </nav>
+
+    <div class="clock" id="clock" aria-label="Demo clock">
+      <span>Demo clock</span>
+      <button type="button" data-adv="1">+1 day</button>
+      <button type="button" data-adv="3">+3 days</button>
+      <button type="button" data-adv="7">+7 days</button>
+      <button type="button" id="reset">Clear all</button>
+    </div>
   </div>
-  <a href="/chat" target="_blank" rel="noopener">Customer chat</a>
 </header>
 
-<section class="strip" aria-label="Money and workload">
-  <div><div class="k">Needs your approval</div><div class="v mono" id="m-pending">0</div></div>
-  <div><div class="k">Waiting for payment</div><div class="v mono" id="m-out">0</div></div>
-  <div><div class="k">Collected</div><div class="v mono" id="m-col">0</div></div>
-  <div><div class="k">Average days to pay</div><div class="v mono" id="m-days">n/a</div></div>
-  <div><div class="k">Likely to pay late</div><div class="v mono" id="m-risk">0</div></div>
-</section>
+<main class="page">
+  <button class="todo" id="todo" type="button">
+    <span class="todo__tile" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+    <span class="todo__text"><b id="todoTitle">Nothing to approve</b><span id="todoText">New quotes from the chat land here</span></span>
+    <b class="todo__n num" id="m-pending">0</b>
+    <span class="todo__bar" aria-hidden="true"><span id="todoBar"></span></span>
+  </button>
 
-<section class="copilot" aria-label="Ask MoveDesk">
-  <form class="ask" id="ask">
-    <label class="sr" for="askText">Ask about your jobs</label>
-    <input id="askText" type="text" maxlength="1000" autocomplete="off" placeholder="Ask about your jobs, for example: who owes me money?">
-    <button class="btn primary" type="submit" id="askBtn">Ask</button>
-  </form>
-  <div class="suggest" id="suggest">
-    <button type="button">What needs my approval?</button>
-    <button type="button">Who owes me money?</button>
-    <button type="button">Who should I chase?</button>
-    <button type="button">How is cash this week?</button>
-  </div>
-  <div class="answer" id="answer" hidden aria-live="polite"></div>
-</section>
+  <section class="stats" aria-label="Payments">
+    <div class="stat"><span>Average days to pay</span><b class="num" id="m-days">n/a</b></div>
+    <div class="stat"><span>Likely to pay late</span><b class="num" id="m-risk">0</b></div>
+  </section>
 
-<main class="layout">
-  <div class="board">
-    <div id="grid" class="ag-theme-quartz"></div>
-    <div id="fallback" hidden></div>
-    <div id="empty" class="empty" hidden><b>No requests yet</b>Share the customer chat link, or add sample requests from the demo bar.</div>
+  <div class="layout">
+    <div class="col">
+      <section class="block" id="askBlock" aria-label="Ask MoveDesk">
+        <div class="block__head"><h2>Ask MoveDesk</h2></div>
+        <form class="ask" id="ask">
+          <label class="sr" for="askText">Ask about your jobs</label>
+          <input id="askText" type="text" maxlength="1000" autocomplete="off" placeholder="Who owes me money?">
+          <button class="btn primary" type="submit" id="askBtn">Ask</button>
+        </form>
+        <div class="suggest" id="suggest">
+          <button type="button">What needs my approval?</button>
+          <button type="button">Who owes me money?</button>
+          <button type="button">Who should I chase?</button>
+          <button type="button">How is cash this week?</button>
+        </div>
+        <div class="answer" id="answer" hidden aria-live="polite"></div>
+      </section>
+
+      <section class="block" id="jobsBlock" aria-labelledby="jobsTitle">
+        <div class="block__head"><h2 id="jobsTitle">Jobs</h2></div>
+        <div class="filters" id="filters" role="group" aria-label="Show jobs"></div>
+        <ul class="jobs" id="jobs"></ul>
+        <div id="empty" class="empty" hidden></div>
+      </section>
+    </div>
+    <aside class="drawer" id="drawer" aria-live="polite"><div class="empty"><b>Pick a job</b><span>Its price, why it costs that and the next step show up here.</span></div></aside>
   </div>
-  <aside class="drawer" id="drawer" aria-live="polite"><div class="empty"><b>Pick a job</b>Quote, price drivers and actions show up here.</div></aside>
 </main>
-<div id="toast" class="toast" hidden></div>
+
+<nav class="tabbar" aria-label="Sections">
+  <a href="#home" class="on"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-6 8 6v8h-5v-5H9v5H4z"/></svg>Home</a>
+  <a href="#jobsBlock"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="6" width="16" height="13" rx="2"/><path d="M9 6V4h6v2"/></svg>Jobs</a>
+  <a href="#askBlock"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg>Ask</a>
+  <a href="/chat" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg>Chat</a>
+</nav>
+
+<div id="toast" class="toast" role="status" hidden></div>
 <aside class="tour" id="tour" hidden aria-live="polite">
   <div class="tour-step" id="tourStep"></div>
   <h2 id="tourTitle"></h2>
   <p id="tourText"></p>
   <div class="tour-actions">
-    <button class="btn primary" id="tourNext" type="button"></button>
-    <button class="btn" id="tourClose" type="button">Close</button>
+    <button class="btn lime" id="tourNext" type="button"></button>
+    <button class="btn dark" id="tourClose" type="button">Close</button>
   </div>
 </aside>
-<script src="/static/vendor/ag-grid-community.min.js"></script>
 <script src="/static/dashboard.js"></script>
 </body>
 </html>

@@ -95,7 +95,7 @@ Intake accuracy of the rule-based extractor on the 1,500 labelled messages in `d
 | States, webhooks, reminders, discount expiry, customer status | `app/workflow.py` |
 | Owner copilot (tool use, propose-only) | `app/copilot.py` |
 | AI provider adapter (Gemini free tier, or Claude) | `app/llm.py` |
-| API and pages | `app/main.py`, `static/` (AG Grid Community is bundled in `static/vendor/`, MIT licensed, so no CDN is needed) |
+| API and pages | `app/main.py`, `static/` (plain HTML, CSS and JavaScript, no build step and no CDN scripts) |
 
 Model results on the held-out test split of the included dataset: duration MAE 0.81 hours (a rooms-only linear baseline is 2.61), R2 0.93; P10 to P90 range covers the real value 75 percent of the time (nominal 80, slightly overconfident). Paid-on-time AUC is 0.95, which is optimistic; use it for reminder timing, not for exact days. Details in [docs/ML.md](docs/ML.md). Re-measure on your own job history before relying on them.
 

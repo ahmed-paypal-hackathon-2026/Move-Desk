@@ -17,7 +17,7 @@ Section 3.1. Teams behind the two entries are the same five people; the projects
 | AI | Gemini clause extraction, rule compiler, timesheet mapper, explanations | Claude chat intake (bilingual), owner copilot with read tools and a propose-only action tool, two regression models (hours, on-time payment) | Different model providers for extraction (Gemini vs Claude), different tool sets |
 | Money direction | Money in (corrections) and money out (payroll via Payouts) | Money in only: quote, deposit, final payment | MoveDesk has no payroll or payout path |
 | Safety model | Leash: Allow / Ask / Deny on every money action | Owner approves every quote; the copilot only proposes; a job is paid only when PayPal says so | Approve button + verified webhook; no deny-list engine in MoveDesk |
-| Frontend | React + Vite + ag-grid-react | FastAPI-served pages + AG Grid Community bundled locally | Different repos, build tools and page structures |
+| Frontend | React + Vite + ag-grid-react | FastAPI-served plain HTML, CSS and JavaScript pages | Different repos, build tools and page structures |
 | Sponsor target | AG Grid | Render | A project can win at most one Grand Prize and one Sponsor Prize (SRC-02), so the two entries do not compete for the same one |
 
 Prize targeting also differs on category: MoveDesk aims at Most Impactful with Best Use of

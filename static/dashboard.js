@@ -16,7 +16,14 @@
     superseded_invoice_paid: "A replaced invoice was paid: check PayPal and refund or credit"
   };
 
-  var state = { jobs: [], selected: null, cfg: {}, key: "", drawerStamp: "", gridApi: null };
+  var FILTERS = [
+    { id: "all", label: "All", has: function () { return true; } },
+    { id: "approve", label: "Needs approval", has: function (s) { return s === "PENDING_APPROVAL"; } },
+    { id: "waiting", label: "Waiting for payment", has: function (s) { return s === "DEPOSIT_SENT" || s === "BALANCE_SENT"; } },
+    { id: "booked", label: "Booked", has: function (s) { return s === "BOOKED"; } },
+    { id: "paid", label: "Paid", has: function (s) { return s === "PAID"; } }
+  ];
+  var state = { jobs: [], selected: null, cfg: {}, key: "", drawerStamp: "", filter: "all" };
   try { state.key = sessionStorage.getItem("md_key") || ""; } catch (e) { /* storage unavailable */ }
 
   function $(id) { return document.getElementById(id); }
@@ -81,87 +88,89 @@
     }[j.status];
   }
   function chip(status) { return h("span", { class: "chip " + status, text: STATUS[status] || status }); }
+  function initialOf(name) { var c = Array.from(String(name || "").trim())[0]; return c ? c.toLocaleUpperCase() : "?"; }
+  /* "$1,234.50" with the cents in a quieter span */
+  function moneyNode(n, cur) {
+    var t = money(n, cur), i = t.lastIndexOf(".");
+    if (i <= 0) return [document.createTextNode(t)];
+    return [document.createTextNode(t.slice(0, i)), h("span", { class: "cents", text: t.slice(i) })];
+  }
 
-  /* ---------- top strip ---------- */
+  /* ---------- money panel and the approval card ---------- */
   function renderMetrics(m) {
-    $("m-pending").textContent = String((m.by_status || {}).PENDING_APPROVAL || 0);
+    var pending = (m.by_status || {}).PENDING_APPROVAL || 0;
+    var total = state.jobs.filter(function (j) { return j.status !== "REJECTED"; }).length;
+    $("m-pending").textContent = String(pending);
+    $("todoTitle").textContent = pending ? (pending === 1 ? "1 quote needs your approval" : pending + " quotes need your approval") : "Nothing to approve";
+    $("todoText").textContent = pending ? "Tap to review the price and send the deposit invoice" : "New quotes from the chat land here";
+    $("todoBar").style.width = total ? Math.round(100 * (total - pending) / total) + "%" : "0";
+    $("todo").classList.toggle("calm", !pending);
+    $("todo").setAttribute("aria-label", $("todoTitle").textContent);
     $("m-out").textContent = money(m.outstanding, m.currency);
-    $("m-col").textContent = money(m.collected, m.currency);
+    var col = $("m-col"); col.textContent = ""; moneyNode(m.collected, m.currency).forEach(function (n) { col.appendChild(n); });
     $("m-days").textContent = m.avg_days_to_pay == null ? "n/a" : m.avg_days_to_pay < 1 ? "same day" : m.avg_days_to_pay + " d";
     var r = $("m-risk"); r.textContent = String((m.at_risk || []).length);
     r.classList.toggle("hot", (m.at_risk || []).length > 0);
   }
 
-  /* ---------- job list (AG Grid, with a plain table if the CDN is unreachable) ---------- */
-  function rowData() {
-    return state.jobs.map(function (j) {
-      return {
-        id: j.id, customer: j.customer_name, move: j.job.move_type + ", " + j.job.rooms + (j.job.rooms === 1 ? " room" : " rooms"),
-        status: j.status, total: j.quote.total, due: dueNow(j), p: j.p_on_time, next: nextAction(j), created: j.created
-      };
+  /* ---------- jobs as rows ---------- */
+  function currentFilter() { return FILTERS.filter(function (f) { return f.id === state.filter; })[0] || FILTERS[0]; }
+  function renderFilters() {
+    var box = $("filters"); box.textContent = "";
+    FILTERS.forEach(function (f) {
+      var n = state.jobs.filter(function (j) { return f.has(j.status); }).length;
+      box.appendChild(h("button", { type: "button", "aria-pressed": String(f.id === state.filter),
+        onclick: function () { setFilter(f.id); } }, [f.label, h("span", { class: "n", text: String(n) })]));
     });
   }
-  function selectJob(id) { state.selected = id; state.drawerStamp = ""; renderDrawer(); markSelection(); }
+  function setFilter(id) { state.filter = id; renderFilters(); renderGrid(); }
+  function selectJob(id) {
+    state.selected = id; state.drawerStamp = ""; renderDrawer(); markSelection();
+    if (window.innerWidth <= 1000) { var d = $("drawer"); if (d.scrollIntoView) d.scrollIntoView({ block: "start" }); }
+  }
   function markSelection() {
-    var rows = document.querySelectorAll("tr.row");
-    rows.forEach(function (r) { r.classList.toggle("sel", r.dataset.id === state.selected); });
+    document.querySelectorAll(".job").forEach(function (r) { r.setAttribute("aria-current", String(r.dataset.id === state.selected)); });
   }
+  function moveText(j) { return j.job.move_type + ", " + j.job.rooms + (j.job.rooms === 1 ? " room" : " rooms"); }
   function renderGrid() {
-    $("empty").hidden = state.jobs.length > 0;
-    var data = rowData();
-    if (window.agGrid && !state.useTable) {
-      $("fallback").hidden = true; $("grid").hidden = state.jobs.length === 0;
-      if (!state.gridApi) {
-        state.gridApi = agGrid.createGrid($("grid"), {
-          columnDefs: [
-            { field: "id", headerName: "Ref", width: 112 },
-            { field: "customer", headerName: "Customer", flex: 1.2, minWidth: 140 },
-            { field: "move", headerName: "Move", flex: 1.2, minWidth: 150 },
-            { field: "status", headerName: "Status", width: 150,
-              cellRenderer: function (p) { return chip(p.value); },
-              valueFormatter: function (p) { return STATUS[p.value]; } },
-            { field: "total", headerName: "Quote", width: 100, type: "rightAligned",
-              valueFormatter: function (p) { return money(p.value); } },
-            { field: "due", headerName: "Open invoice", width: 125, type: "rightAligned",
-              valueFormatter: function (p) { return p.value == null ? "" : money(p.value); } },
-            { field: "p", headerName: "On time", width: 100, type: "rightAligned",
-              cellRenderer: function (p) {
-                if (p.value == null) return "";
-                return h("span", { class: p.value < 0.5 ? "late" : "", text: Math.round(p.value * 100) + "%" });
-              } }
-          ],
-          rowData: data, getRowId: function (p) { return p.data.id; }, rowSelection: "single", domLayout: "autoHeight", suppressCellFocus: true,
-          defaultColDef: { sortable: true, resizable: true },
-          onRowClicked: function (e) { selectJob(e.data.id); }
-        });
-      } else {
-        state.gridApi.setGridOption("rowData", data);
-      }
-      return;
+    var f = currentFilter();
+    var jobs = state.jobs.filter(function (j) { return f.has(j.status); });
+    var empty = $("empty"), list = $("jobs");
+    empty.hidden = jobs.length > 0; empty.textContent = "";
+    if (!jobs.length) {
+      empty.appendChild(h("b", { text: state.jobs.length ? "Nothing here right now" : "No requests yet" }));
+      empty.appendChild(h("span", { text: state.jobs.length ? "No jobs match " + f.label.toLowerCase() + ". Pick another filter above."
+        : "Open the customer chat and describe a move, or press Samples." }));
     }
-    // fallback table
-    $("grid").hidden = true; var fb = $("fallback"); fb.hidden = state.jobs.length === 0; fb.textContent = "";
-    var t = h("table", { class: "plain" }, [
-      h("thead", {}, h("tr", {}, ["Ref", "Customer", "Move", "Status", "Quote", "Open invoice"].map(function (x) { return h("th", { text: x }); }))),
-      h("tbody", {}, data.map(function (d) {
-        return h("tr", { class: "row", "data-id": d.id, tabindex: "0", onclick: function () { selectJob(d.id); },
-          onkeydown: function (e) { if (e.key === "Enter") selectJob(d.id); } }, [
-          h("td", { text: d.id }), h("td", { text: d.customer }), h("td", { text: d.move }), h("td", {}, chip(d.status)),
-          h("td", { class: "mono", text: money(d.total) }), h("td", { class: "mono", text: d.due == null ? "" : money(d.due) })]);
-      }))]);
-    fb.appendChild(t); markSelection();
+    list.textContent = "";
+    jobs.forEach(function (j) {
+      var due = dueNow(j);
+      list.appendChild(h("li", {}, h("button", { type: "button", class: "job", "data-id": j.id,
+        "aria-current": String(j.id === state.selected), onclick: function () { selectJob(j.id); } }, [
+        h("span", { class: "avatar" + (j.status === "PENDING_APPROVAL" ? " hot" : ""), "aria-hidden": "true", text: initialOf(j.customer_name) }),
+        h("span", { class: "job__text" }, [
+          h("span", { class: "job__name", dir: "auto", text: j.customer_name }),
+          h("span", { class: "job__sub", text: moveText(j) + ", " + (due != null ? "owes " + money(due) : nextAction(j).toLowerCase()) })]),
+        h("span", { class: "job__side" }, [h("span", { class: "job__amt num" }, moneyNode(j.quote.total)), chip(j.status)])
+      ])));
+    });
   }
-
   /* ---------- detail drawer ---------- */
   function route(status) {
-    var at = STEP_AT[status]; var kids = [];
-    STEPS.forEach(function (s, i) {
-      if (i) kids.push(h("span", { class: "leg" + (i <= at ? " done" : "") }));
-      kids.push(h("span", { class: "stop" + (i < at ? " done" : i === at && status !== "REJECTED" ? " now" : "") }));
-    });
-    return [h("div", { class: "route", role: "img", "aria-label": "Progress: " + (STATUS[status] || status) }, kids),
-      h("div", { class: "route-labels" }, STEPS.map(function (s) { return h("span", { text: s }); }))];
+    var at = status === "REJECTED" ? -1 : STEP_AT[status];
+    return h("ol", { class: "steps", "aria-label": "Progress: " + (STATUS[status] || status) }, STEPS.map(function (s, i) {
+      var cls = i < at || (status === "PAID" && i === at) ? "done" : i === at ? "now" : "";
+      return h("li", { class: cls, "aria-current": cls === "now" ? "step" : false }, [h("span", { class: "dot", "aria-hidden": "true" }), s]);
+    }));
   }
+  var NEXT_TEXT = {
+    PENDING_APPROVAL: "Check the price below. Approving sends the customer a PayPal invoice for the deposit.",
+    DEPOSIT_SENT: "The deposit invoice is with the customer. MoveDesk books the move as soon as PayPal confirms payment.",
+    BOOKED: "After the move, enter the real hours. MoveDesk adds any extra time and sends the final invoice.",
+    BALANCE_SENT: "The final invoice is with the customer. Reminders go out on their own.",
+    PAID: "Paid in full. Nothing left to do.",
+    REJECTED: "This request was turned down."
+  };
 
   function invoiceBlock(title, url, qr, amount, extra) {
     return h("section", {}, [
@@ -169,7 +178,8 @@
       h("div", { class: "qr" }, [
         qr ? h("img", { src: qr, alt: "QR code to pay the invoice" }) : null,
         h("div", {}, [
-          h("div", { class: "mono", text: "Amount due " + money(amount) }),
+          h("div", { class: "note", text: "Amount due" }),
+          h("div", { class: "amt num" }, moneyNode(amount)),
           url ? h("a", { href: url, target: "_blank", rel: "noopener noreferrer", text: "Open customer invoice" }) : null,
           extra
         ])
@@ -189,7 +199,7 @@
     }
     if (j.status === "PENDING_APPROVAL") {
       var reason = h("input", { type: "text", placeholder: "Reason (optional)", "aria-label": "Rejection reason" });
-      box.appendChild(h("button", { class: "btn primary", text: "Approve and send deposit invoice",
+      box.appendChild(h("button", { class: "btn lime", text: "Approve and send deposit invoice",
         onclick: run("Deposit invoice sent", function () { return api("/api/jobs/" + j.id + "/approve", { method: "POST" }); }) }));
       box.appendChild(h("div", { class: "row" }, [reason, h("button", { class: "btn danger", text: "Reject",
         onclick: run("Request rejected", function () { return api("/api/jobs/" + j.id + "/reject", { method: "POST", body: { reason: reason.value } }); }) })]));
@@ -198,8 +208,8 @@
       var hrs = h("input", { id: "hrs", type: "number", step: "0.25", min: "0.25", max: "72", value: String(j.quote.billable_hours), "aria-label": "Actual hours worked" });
       var waive = h("input", { type: "checkbox", id: "waive" });
       box.appendChild(h("div", { class: "row" }, [h("label", { for: "hrs", text: "Actual hours" }), hrs]));
-      box.appendChild(h("label", { class: "note" }, [waive, " Waive extra time charges"]));
-      box.appendChild(h("button", { class: "btn primary", text: "Job done: send balance invoice",
+      box.appendChild(h("label", { class: "note" }, [waive, "Waive extra time charges"]));
+      box.appendChild(h("button", { class: "btn lime", text: "Job done: send final invoice",
         onclick: run("Balance invoice sent", function () {
           return api("/api/jobs/" + j.id + "/complete", { method: "POST", body: { actual_hours: parseFloat(hrs.value), waive_overtime: waive.checked } });
         }) }));
@@ -209,13 +219,17 @@
         onclick: run("Recorded and confirmed with PayPal", function () { return api("/api/jobs/" + j.id + "/record-cash", { method: "POST" }); }) }));
       if (state.cfg.paypal_mode === "mock") {
         var inv = j.status === "DEPOSIT_SENT" ? j.deposit_invoice : j.balance_invoice;
-        box.appendChild(h("a", { href: "/mock-pay/" + encodeURIComponent(inv), target: "_blank", rel: "noopener", text: "Open the simulated pay page" }));
+        box.appendChild(h("a", { href: "/mock-pay/" + encodeURIComponent(inv), target: "_blank", rel: "noopener", text: "Pay as the customer (simulator)" }));
       }
     }
     box.appendChild(err);
     return box;
   }
 
+  function emptyDrawer() {
+    var d = $("drawer"); d.textContent = "";
+    d.appendChild(h("div", { class: "empty" }, [h("b", { text: "Pick a job" }), h("span", { text: "Its price, why it costs that and the next step show up here." })]));
+  }
   function renderDrawer() {
     var d = $("drawer");
     var j = state.jobs.filter(function (x) { return x.id === state.selected; })[0];
@@ -224,17 +238,20 @@
     state.drawerStamp = j.updated + j.status;
     d.textContent = "";
     var q = j.quote, e = j.estimate;
-    d.appendChild(h("h2", { text: j.customer_name }));
-    d.appendChild(h("div", { class: "sub", text: j.id + " · " + j.customer_email }));
-    d.appendChild(chip(j.status));
-    route(j.status).forEach(function (n) { d.appendChild(n); });
+    d.appendChild(h("div", { class: "drawer__head" }, [
+      h("span", { class: "avatar", "aria-hidden": "true", text: initialOf(j.customer_name) }),
+      h("div", {}, [h("h2", { dir: "auto", text: j.customer_name }), h("div", { class: "sub", text: j.customer_email + ", ref " + j.id })])]));
+    d.appendChild(route(j.status));
+    var next = h("div", { class: "next" }, [h("h3", { text: nextAction(j) }), h("p", { text: NEXT_TEXT[j.status] || "" })]);
+    if (["PENDING_APPROVAL", "BOOKED", "DEPOSIT_SENT", "BALANCE_SENT"].indexOf(j.status) >= 0) next.appendChild(actions(j));
+    d.appendChild(next);
 
     var lines = q.lines.map(function (l) {
       return h("tr", {}, [h("td", { text: l.name }), h("td", { class: "mono", text: money(l.amount, q.currency) })]);
     });
     lines.push(h("tr", { class: "total" }, [h("td", { text: "Total" }), h("td", { class: "mono", text: money(q.total, q.currency) })]));
-    lines.push(h("tr", {}, [h("td", { text: "Deposit (" + Math.round(q.deposit_pct * 100) + "%)" }), h("td", { class: "mono", text: money(q.deposit, q.currency) })]));
-    lines.push(h("tr", {}, [h("td", { text: "Balance" }), h("td", { class: "mono", text: money(q.balance, q.currency) })]));
+    lines.push(h("tr", { class: "soft" }, [h("td", { text: "Deposit (" + Math.round(q.deposit_pct * 100) + "%)" }), h("td", { class: "mono", text: money(q.deposit, q.currency) })]));
+    lines.push(h("tr", { class: "soft" }, [h("td", { text: "Balance after the move" }), h("td", { class: "mono", text: money(q.balance, q.currency) })]));
     if (j.overtime_amount) lines.push(h("tr", {}, [h("td", { text: "Extra time" }), h("td", { class: "mono", text: money(j.overtime_amount, q.currency) })]));
     d.appendChild(h("section", {}, [h("h3", { text: "Quote" }), h("table", { class: "lines" }, lines),
       h("div", { class: "note", text: "Estimated " + e.hours + " h (likely range " + e.p10 + " to " + e.p90 + " h), price range " +
@@ -242,9 +259,9 @@
 
     if ((e.drivers || []).length || (j.assumptions || []).length) {
       var s = h("section", {}, [h("h3", { text: "Why this price" })]);
-      if (e.drivers.length) s.appendChild(h("ul", { class: "tight" }, e.drivers.map(function (x) { return h("li", { text: x.factor + ": " + (x.hours > 0 ? "+" : "") + x.hours + " h" }); })));
+      if (e.drivers.length) s.appendChild(h("ul", { class: "factors" }, e.drivers.map(function (x) { return h("li", {}, [x.factor + " ", h("b", { text: (x.hours > 0 ? "+" : "") + x.hours + " h" })]); })));
       if (j.assumptions.length) {
-        s.appendChild(h("div", { class: "note", text: "Assumed because the customer did not say:" }));
+        s.appendChild(h("p", { class: "note", text: "Assumed because the customer did not say:" }));
         s.appendChild(h("ul", { class: "tight" }, j.assumptions.map(function (x) { return h("li", { text: x }); })));
       }
       d.appendChild(s);
@@ -263,7 +280,6 @@
       d.appendChild(h("section", {}, [h("h3", { text: "Reminders sent" }),
         h("ul", { class: "tight" }, j.reminders.map(function (r) { return h("li", { text: "Day " + r.day + ", " + r.tone + ": " + r.text }); }))]));
     }
-    d.appendChild(h("section", {}, [h("h3", { text: "Actions" }), actions(j)]));
     var tl = h("div", { class: "timeline" });
     d.appendChild(h("section", {}, [h("h3", { text: "Timeline" }), tl]));
     api("/api/jobs/" + j.id).then(function (full) {
@@ -276,7 +292,7 @@
   /* ---------- data loop ---------- */
   function refresh(force) {
     return Promise.all([api("/api/jobs"), api("/api/metrics")]).then(function (res) {
-      state.jobs = res[0]; renderMetrics(res[1]); renderGrid();
+      state.jobs = res[0]; renderMetrics(res[1]); renderFilters(); renderGrid();
       if (force) state.drawerStamp = "";
       renderDrawer();
     });
@@ -296,7 +312,7 @@
     });
     $("reset").addEventListener("click", function () {
       if (!window.confirm("Delete all jobs and start over?")) return;
-      api("/api/demo/reset", { method: "POST" }).then(function () { state.selected = null; $("drawer").textContent = ""; return refresh(true); }).catch(function (e) { toast(e.message); });
+      api("/api/demo/reset", { method: "POST" }).then(function () { state.selected = null; emptyDrawer(); return refresh(true); }).catch(function (e) { toast(e.message); });
     });
   }
 
@@ -361,7 +377,7 @@
       } },
     { title: "The agent replied with a price range", text: function () { return "“" + tour.reply + "”\n\nHours come from a trained model. The price comes from the company's own rate card, never from the AI."; },
       button: "Look at it as the owner", run: focusJob },
-    { title: "The owner sees why it costs that", text: function () { return "On the right: the price lines, what adds hours (stairs, packing) and every guess the agent made. Nothing has gone to the customer yet."; },
+    { title: "The owner sees why it costs that", text: function () { return "In the job panel: the price lines, what adds hours (stairs, packing) and every guess the agent made. Nothing has gone to the customer yet."; },
       button: "Approve and send the deposit invoice",
       run: function () { return api("/api/jobs/" + tour.job + "/approve", { method: "POST" }).then(focusJob); } },
     { title: "PayPal sent the deposit invoice", text: function () { return "The customer gets a PayPal invoice with a QR code, and a Pay deposit button appears in their chat."; },
@@ -399,14 +415,29 @@
       if (tour.i < STORY.length - 1) { tour.i += 1; showStep(); }
     }).catch(function (e) { toast(e.message); }).then(function () { b.disabled = false; });
   });
+  $("goAsk").addEventListener("click", function () {
+    $("askBlock").scrollIntoView({ block: "start" }); $("askText").focus({ preventScroll: true });
+  });
+  document.querySelectorAll(".tabbar a[href^='#']").forEach(function (a) {
+    a.addEventListener("click", function () {
+      document.querySelectorAll(".tabbar a").forEach(function (x) { x.classList.toggle("on", x === a); });
+    });
+  });
+  $("todo").addEventListener("click", function () {
+    setFilter("approve");
+    var first = state.jobs.filter(function (j) { return j.status === "PENDING_APPROVAL"; })[0];
+    if (first) selectJob(first.id);
+  });
   $("tourClose").addEventListener("click", function () { $("tour").hidden = true; });
   $("play").addEventListener("click", function () { tour = { i: 0, job: null, reply: "" }; showStep(); $("tour").hidden = false; $("tourNext").focus(); });
 
   api("/api/config").then(function (c) {
     state.cfg = c;
-    $("company").textContent = c.company + " dispatch";
-    $("mode").textContent = c.paypal_mode === "mock" ? "PayPal simulator" : "PayPal sandbox";
-    if (c.paypal_mode === "mock") $("demo").classList.add("on");
+    $("company").textContent = c.company;
+    document.title = c.company + " for owners";
+    $("mode").textContent = c.paypal_mode === "mock" ? "Demo mode" : "PayPal sandbox";
+    $("mode").title = c.paypal_mode === "mock" ? "PayPal simulator: no real money moves" : "Connected to the PayPal sandbox";
+    if (c.paypal_mode === "mock") { $("demo").classList.add("on"); $("clock").classList.add("on"); }
     demoButtons();
     return refresh(true);
   }).catch(function (e) { toast(e.message); });

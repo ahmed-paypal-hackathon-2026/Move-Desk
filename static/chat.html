@@ -5,18 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Get a moving quote</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;800&family=Public+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<meta name="theme-color" content="#efefea">
 <link rel="stylesheet" href="/static/style.css">
 </head>
-<body>
+<body class="chat-body">
 <div class="chatwrap">
-  <header class="chathead"><h1 id="co">Get a moving quote</h1><p>Tell us about your move in your own words, in English or Arabic. A person confirms every quote.</p></header>
+  <header class="chathead">
+    <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="11"/><path d="M6.5 20.5V10.5h11.5v10M18 13.5h4.2l3.3 3.6v3.4H18"/><circle cx="11" cy="21.5" r="2.2"/><circle cx="21.5" cy="21.5" r="2.2"/></svg>
+    <div><h1 id="co">Get a moving quote</h1><p>Describe your move in your own words, English or Arabic. A person checks every price.</p></div>
+  </header>
   <div class="msgs" id="msgs" role="log" aria-live="polite"></div>
   <div class="hint" id="hint"><button type="button" id="example">Try an example message</button></div>
   <form class="composer" id="form">
     <label class="sr" for="text">Your message</label>
     <textarea id="text" rows="1" maxlength="2000" placeholder="Example: 3 room apartment, 4th floor no elevator, moving 20 km" required></textarea>
-    <button class="btn primary" id="send" type="submit">Send</button>
+    <button class="btn lime" id="send" type="submit">Send</button>
   </form>
 </div>
 <script>
@@ -32,7 +37,7 @@
   }
   add("bot", "Hi! Tell me about your move: what kind of home, how many rooms, which floors, whether there are elevators, and about how far you are moving. Please add your name and email so we can send the invoice.");
   fetch("/api/config").then(function (r) { return r.json(); }).then(function (c) {
-    document.getElementById("co").textContent = c.company + ": get a moving quote";
+    document.getElementById("co").textContent = c.company;
     document.title = c.company + " quote";
   }).catch(function () {});
   /* After the quote: follow the job (approval, deposit, booking, final invoice, paid) right here. */
@@ -48,11 +53,11 @@
     card.appendChild(el("h2", "", st.message));
     card.appendChild(el("div", "note", "Reference " + st.job_id));
     if (st.pay) {
-      card.appendChild(el("div", "amt mono", money(st.pay.amount, st.currency)));
+      card.appendChild(el("div", "amt num", money(st.pay.amount, st.currency)));
       if (st.pay.discount_pct) card.appendChild(el("div", "note", "Includes a " + st.pay.discount_pct + "% discount if paid by " + new Date(st.pay.discount_until).toLocaleDateString()));
       var row = el("div", "row");
       if (st.pay.qr) { var img = el("img"); img.src = st.pay.qr; img.alt = "QR code to pay with PayPal"; row.appendChild(img); }
-      var a = el("a", "btn primary", st.pay.label + " with PayPal"); a.href = st.pay.url; a.target = "_blank"; a.rel = "noopener noreferrer";
+      var a = el("a", "btn lime", st.pay.label + " with PayPal"); a.href = st.pay.url; a.target = "_blank"; a.rel = "noopener noreferrer";
       row.appendChild(a); card.appendChild(row);
     } else if (st.total) {
       card.appendChild(el("div", "note", "Total for your move: " + money(st.total, st.currency)));
